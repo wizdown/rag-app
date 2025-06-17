@@ -68,3 +68,47 @@ This section has moved here: [https://facebook.github.io/create-react-app/docs/d
 ### `npm run build` fails to minify
 
 This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+
+# Frontend Setup Instructions
+
+This guide will help you set up the React frontend on a new machine after cloning the repository.
+
+## 1. Install Node.js and npm
+Make sure you have [Node.js](https://nodejs.org/) (which includes npm) installed. You can check by running:
+
+```
+node -v
+npm -v
+```
+
+If not installed, download and install from the [official Node.js website](https://nodejs.org/).
+
+## 2. Install Dependencies
+Navigate to the `frontend` directory and install the required packages:
+
+```
+cd frontend
+npm install
+```
+
+## 3. Start the Development Server
+To run the frontend in development mode:
+
+```
+npm start
+```
+
+This will start the app and open it in your default browser at [http://localhost:3000](http://localhost:3000).
+
+## 4. Build for Production (Optional)
+To create an optimized production build:
+
+```
+npm run build
+```
+
+---
+
+**Note:**
+- Do not commit the `node_modules/` directory. All dependencies are managed via `package.json` and can be installed with `npm install`.
+- If you add new dependencies, run `npm install <package-name>` and commit the updated `package.json` and `package-lock.json` files.
