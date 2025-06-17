@@ -29,13 +29,12 @@ services:
     build:
       context: ./ollama
       dockerfile: Dockerfile
-      args:
-        OLLAMA_MODELS: "phi3:mini-128k nomic-embed-text"
     container_name: ollama
     ports:
       - "11434:11434"
     volumes:
       - ollama_data:/root/.ollama
+    restart: unless-stopped
 
 volumes:
   ollama_data: 
