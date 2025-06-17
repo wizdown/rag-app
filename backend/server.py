@@ -2,6 +2,7 @@ import warnings
 from fastapi import FastAPI
 from pydantic import BaseModel
 import uvicorn
+import os
 
 # LangChain components
 from langchain_community.chat_models import ChatOllama
@@ -46,11 +47,14 @@ def create_rag_chain():
     documents = text_splitter.create_documents([data_source])
     
     # Create embeddings and vector store
-    embeddings = OllamaEmbeddings(model="nomic-embed-text")
+    ollama_host = os.getenv("OLLAMA_HOST", "localhost")
+    ollama_port = os.getenv("OLLAMA_PORT", "11434")
+    ollama_url = f"http://{ollama_host}:{ollama_port}"
+    embeddings = OllamaEmbeddings(model="nomic-embed-text", base_url=ollama_url)
     vector_store = FAISS.from_documents(documents, embeddings)
     
     # Define the LLM
-    llm = ChatOllama(model="phi3:mini-128k")
+    llm = ChatOllama(model="phi3:mini-128k", base_url=ollama_url)
     
     # Create a prompt template
     prompt = ChatPromptTemplate.from_template("""
