@@ -50,7 +50,7 @@ def create_rag_chain():
     vector_store = FAISS.from_documents(documents, embeddings)
     
     # Define the LLM
-    llm = ChatOllama(model="llama3")
+    llm = ChatOllama(model="phi3:mini-128k")
     
     # Create a prompt template
     prompt = ChatPromptTemplate.from_template("""
