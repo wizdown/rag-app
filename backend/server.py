@@ -7,7 +7,7 @@ import os
 # LangChain components
 from langchain_community.chat_models import ChatOllama
 from langchain_community.embeddings import OllamaEmbeddings
-from langchain_community.vectorstores import FAISS
+from langchain_postgres import PGVector
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain.chains import create_retrieval_chain
@@ -45,18 +45,34 @@ def create_rag_chain():
     # Split documents
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
     documents = text_splitter.create_documents([data_source])
-    
-    # Create embeddings and vector store
+
+    # Setup Ollama embeddings model
     ollama_host = os.getenv("OLLAMA_HOST", "localhost")
     ollama_port = os.getenv("OLLAMA_PORT", "11434")
     ollama_url = f"http://{ollama_host}:{ollama_port}"
     embeddings = OllamaEmbeddings(model="nomic-embed-text", base_url=ollama_url)
-    vector_store = FAISS.from_documents(documents, embeddings)
-    
-    # Define the LLM
+
+    # Bootup fails if DATABASE_URL is not set
+    try:
+        connection_string = os.environ["PG_VECTOR_DATABASE_URL"]
+        print("--- Found PG_VECTOR_DATABASE_URL environment variable. ---")
+    except KeyError:
+        print("--- FATAL ERROR: PG_VECTOR_DATABASE_URL environment variable not set. ---")
+        # Re-raise the exception to ensure the application stops.
+        raise
+
+    collection_name = "apollo_program_docs"
+
+    vector_store = PGVector.from_documents(
+        embedding=embeddings,
+        documents=documents,
+        collection_name=collection_name,
+        connection=connection_string,
+        pre_delete_collection=True,
+    )
+
     llm = ChatOllama(model="phi3:mini-128k", base_url=ollama_url)
     
-    # Create a prompt template
     prompt = ChatPromptTemplate.from_template("""
     Answer the following question based only on the provided context:
 
@@ -67,80 +83,52 @@ def create_rag_chain():
     Question: {input}
     """)
     
-    # Create the 'stuff' documents chain
     document_chain = create_stuff_documents_chain(llm, prompt)
-    
-    # Create the retriever
     retriever = vector_store.as_retriever()
-    
-    # Create the final retrieval chain
     retrieval_chain = create_retrieval_chain(retriever, document_chain)
     
     return retrieval_chain
 
 # --- FASTAPI SERVER SETUP ---
 
-# Initialize the FastAPI app
 app = FastAPI(
-    title="RAG Server with Ollama",
-    description="A simple API to ask questions to a RAG model using local Ollama models.",
+    title="RAG Server",
+    description="A simple API to ask questions to a RAG model using local Ollama models and PGVector.",
     version="1.0.0",
 )
 
-# --- ADD THIS MIDDLEWARE CONFIGURATION ---
-# This allows the frontend (running on localhost:3000) to communicate with the backend.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allows all origins for simplicity. For production, you'd list specific domains.
+    allow_origins=["*"],
     allow_credentials=True,
-    allow_methods=["*"],  # Allows all methods (GET, POST, etc.)
-    allow_headers=["*"],  # Allows all headers
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
-# A global variable to hold the RAG chain
 rag_chain = None
 
 @app.on_event("startup")
 def startup_event():
-    """
-    Event handler that runs when the FastAPI application starts.
-    It creates and initializes the RAG chain.
-    """
     global rag_chain
-    print("--- Server starting up: Initializing RAG chain... ---")
+    print("--- Server starting up: Initializing RAG chain with PGVector... ---")
     rag_chain = create_rag_chain()
     print("--- RAG chain initialized successfully. Server is ready. ---")
 
-# Define the request body model for the /ask endpoint
 class QuestionRequest(BaseModel):
     question: str
 
-# Define the response body model
 class AnswerResponse(BaseModel):
     answer: str
 
 @app.post("/ask", response_model=AnswerResponse)
 async def ask_question(request: QuestionRequest):
-    """
-    API endpoint to ask a question.
-    It receives a question in the request body and returns the model's answer.
-    """
     if rag_chain is None:
         return {"error": "RAG chain is not initialized."}
     
     print(f"--- Received question: {request.question} ---")
-    
-    # Invoke the RAG chain with the user's question
     response = rag_chain.invoke({"input": request.question})
-    
     print(f"--- Generated answer: {response['answer']} ---")
-    
-    # Return the answer from the RAG chain's response
     return AnswerResponse(answer=response['answer'])
 
-# Main entry point to run the server
 if __name__ == "__main__":
-    # Use uvicorn to run the app.
-    # host="0.0.0.0" makes it accessible from your local network.
-    # reload=True automatically restarts the server when you change the code.
     uvicorn.run("server:app", host="0.0.0.0", port=8000, reload=True)
