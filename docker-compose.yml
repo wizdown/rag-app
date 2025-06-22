@@ -12,9 +12,7 @@ services:
       - CHOKIDAR_USEPOLLING=true
 
   backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
+    image: rag-backend:latest # Image built locally
     container_name: backend
     ports:
       - "8000:8000"
@@ -23,12 +21,11 @@ services:
     environment:
       - OLLAMA_HOST=ollama
       - OLLAMA_PORT=11434
+      - PG_VECTOR_DATABASE_URL=postgresql://demo_user:demo_password@vectordb:5432/rag_db
     restart: unless-stopped
 
   ollama:
-    build:
-      context: ./ollama
-      dockerfile: Dockerfile
+    image: rag-ollama:latest  # Image built locally
     container_name: ollama
     ports:
       - "11434:11434"
@@ -36,5 +33,21 @@ services:
       - ollama_data:/root/.ollama
     restart: unless-stopped
 
+  vectordb:
+    image: pgvector/pgvector:pg16
+    container_name: pgvector_db
+    environment:
+      POSTGRES_DB: rag_db
+      POSTGRES_USER: demo_user
+      POSTGRES_PASSWORD: demo_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./pgvector/init.sql:/docker-entrypoint-initdb.d/init.sql
+    restart: always
+
 volumes:
   ollama_data: 
+
+  postgres_data:

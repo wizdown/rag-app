@@ -5,3 +5,10 @@ faiss-cpu
 ollama
 fastapi
 uvicorn[standard]
+langchain-postgres
+
+# Solves the SQLAlchemy dependency for 'psycopg2'
+psycopg2-binary
+
+# Solves the direct dependency for 'psycopg' v3
+psycopg[binary]
