@@ -66,3 +66,23 @@ If no collections have been ingested yet, you will receive an empty array:
 ```
 []
 ```
+
+## 4. Delete a Collection
+This command sends a DELETE request to the /collections/{collection_name} endpoint. You need to replace {collection_name} in the URL with the actual name of the collection you want to delete.
+
+For example, to delete the apollo_docs collection:
+```
+curl -X 'DELETE' 'http://localhost:8000/collections/apollo_docs' -v
+```
+Note: I've added the -v (verbose) flag so you can see the ```HTTP/1.1 204 No Content``` status in the response, confirming the successful deletion.
+
+Expected Response:
+
+If the collection exists and is deleted successfully, the server will respond with an ```HTTP 204 No Content status code``` and an empty body.
+
+If the collection does not exist, the server will respond with an HTTP 404 Not Found status code and a JSON body like this:
+```
+{
+  "detail": "Collection 'apollo_docs' not found or could not be deleted."
+}
+```

@@ -1,5 +1,5 @@
 import warnings
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, status
 from pydantic import BaseModel
 import uvicorn
 import os
@@ -38,8 +38,8 @@ is_server_ready = False # Boolean flag to indicate server readiness
 
 app = FastAPI(
     title="Dynamic RAG Server",
-    description="An API to ingest data sources into PGVector and ask questions against them.",
-    version="2.5.0", # Version updated for component reuse
+    description="An API to ingest, query, and manage data sources in PGVector.",
+    version="2.6.0", # Version updated for delete API
 )
 
 app.add_middleware(
@@ -206,14 +206,11 @@ async def list_collections():
         raise HTTPException(status_code=503, detail="Server is not fully initialized.")
     
     try:
-        collection_table_name = "langchain_pg_collection" # Default table name used by PGVector
-        
-        # Use the global inspector to check for the table
+        collection_table_name = "langchain_pg_collection"
         if not inspector.has_table(collection_table_name):
             print(f"--- Collection table '{collection_table_name}' does not exist. Returning empty list. ---")
             return []
 
-        # Use the global engine to connect
         with engine.connect() as connection:
             query = text(f"SELECT name FROM {collection_table_name}")
             result = connection.execute(query)
@@ -224,6 +221,45 @@ async def list_collections():
     except Exception as e:
         print(f"Error listing collections: {e}")
         raise HTTPException(status_code=500, detail="Failed to retrieve collections from the database.")
+
+
+# --- NEW ENDPOINT TO DELETE A COLLECTION ---
+@app.delete("/collections/{collection_name}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_collection(collection_name: str):
+    """
+    API endpoint to delete a specific collection and all its associated embeddings.
+    """
+    if not is_server_ready:
+        raise HTTPException(status_code=503, detail="Server is not fully initialized.")
+
+    print(f"--- Received request to delete collection: {collection_name} ---")
+    try:
+        # Instantiate the vector store to get access to its methods
+        vector_store = PGVector(
+            embeddings=embeddings,
+            collection_name=collection_name,
+            connection=connection_string,
+        )
+
+        # The delete method with collection_only=True will remove all embeddings
+        # and the collection entry from the management tables.
+        vector_store.delete(collection_only=True)
+        
+        # Also remove the chain from the in-memory cache if it exists
+        if collection_name in rag_chain_cache:
+            del rag_chain_cache[collection_name]
+            print(f"--- Cleared cache for deleted collection: {collection_name} ---")
+
+        print(f"--- Successfully deleted collection: {collection_name} ---")
+        return
+    except Exception as e:
+        # This will catch errors if the collection doesn't exist or other DB issues
+        print(f"Error deleting collection '{collection_name}': {e}")
+        raise HTTPException(
+            status_code=404,
+            detail=f"Collection '{collection_name}' not found or could not be deleted."
+        )
+
 
 # Main entry point to run the server
 if __name__ == "__main__":
