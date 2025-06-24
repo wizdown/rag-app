@@ -39,7 +39,7 @@ is_server_ready = False # Boolean flag to indicate server readiness
 app = FastAPI(
     title="Dynamic RAG Server",
     description="An API to ingest, query, and manage data sources in PGVector.",
-    version="2.6.0", # Version updated for delete API
+    version="2.7.0", # Version updated for robust delete
 )
 
 app.add_middleware(
@@ -68,7 +68,7 @@ def startup_event():
     ollama_port = os.getenv("OLLAMA_PORT", "11434")
     ollama_url = f"http://{ollama_host}:{ollama_port}"
     
-    llm = ChatOllama(model="phi3:mini-128k", base_url=ollama_url)
+    llm = ChatOllama(model="llama3.2:1b", base_url=ollama_url)
     embeddings = OllamaEmbeddings(model="nomic-embed-text", base_url=ollama_url)
 
     # Get the database connection string from environment variables
@@ -222,45 +222,51 @@ async def list_collections():
         print(f"Error listing collections: {e}")
         raise HTTPException(status_code=500, detail="Failed to retrieve collections from the database.")
 
-
-# --- NEW ENDPOINT TO DELETE A COLLECTION ---
+# --- UPDATED ENDPOINT TO DELETE A COLLECTION ---
 @app.delete("/collections/{collection_name}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_collection(collection_name: str):
     """
-    API endpoint to delete a specific collection and all its associated embeddings.
+    API endpoint to robustly delete a specific collection and all its associated embeddings
+    by using direct SQL commands.
     """
     if not is_server_ready:
         raise HTTPException(status_code=503, detail="Server is not fully initialized.")
 
     print(f"--- Received request to delete collection: {collection_name} ---")
-    try:
-        # Instantiate the vector store to get access to its methods
-        vector_store = PGVector(
-            embeddings=embeddings,
-            collection_name=collection_name,
-            connection=connection_string,
-        )
+    
+    collection_table = "langchain_pg_collection"
+    embedding_table = "langchain_pg_embedding"
 
-        # The delete method with collection_only=True will remove all embeddings
-        # and the collection entry from the management tables.
-        vector_store.delete(collection_only=True)
-        
-        # Also remove the chain from the in-memory cache if it exists
+    try:
+        with engine.begin() as connection:  # Begins a transaction
+            # 1. Find the UUID of the collection to be deleted
+            find_query = text(f"SELECT uuid FROM {collection_table} WHERE name = :coll_name")
+            result = connection.execute(find_query, {"coll_name": collection_name}).first()
+            
+            if not result:
+                raise HTTPException(status_code=404, detail=f"Collection '{collection_name}' not found.")
+                
+            collection_uuid = result[0]
+            
+            # 2. Delete all embeddings associated with that collection UUID
+            delete_embeddings_query = text(f"DELETE FROM {embedding_table} WHERE collection_id = :coll_id")
+            connection.execute(delete_embeddings_query, {"coll_id": collection_uuid})
+            
+            # 3. Delete the collection's entry from the management table
+            delete_collection_query = text(f"DELETE FROM {collection_table} WHERE uuid = :coll_id")
+            connection.execute(delete_collection_query, {"coll_id": collection_uuid})
+
+        # 4. Also remove the chain from the in-memory cache if it exists
         if collection_name in rag_chain_cache:
             del rag_chain_cache[collection_name]
             print(f"--- Cleared cache for deleted collection: {collection_name} ---")
 
-        print(f"--- Successfully deleted collection: {collection_name} ---")
+        print(f"--- Successfully deleted collection '{collection_name}' from database. ---")
         return
+
+    except HTTPException as http_exc:
+        # Re-raise HTTPException to ensure FastAPI handles it correctly
+        raise http_exc
     except Exception as e:
-        # This will catch errors if the collection doesn't exist or other DB issues
-        print(f"Error deleting collection '{collection_name}': {e}")
-        raise HTTPException(
-            status_code=404,
-            detail=f"Collection '{collection_name}' not found or could not be deleted."
-        )
-
-
-# Main entry point to run the server
-if __name__ == "__main__":
-    uvicorn.run("server:app", host="0.0.0.0", port=8000, reload=True)
+        print(f"An unexpected database error occurred while deleting '{collection_name}': {e}")
+        raise HTTPException(status_code=500, detail="Failed to delete collection due to a database error.")
