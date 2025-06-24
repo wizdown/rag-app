@@ -5,7 +5,7 @@ FROM ollama/ollama:latest AS builder
 # This single RUN command starts the server, pulls models, and then stops the server.
 RUN sh -c "ollama serve & \
     sleep 10 && \
-    ollama pull phi3:mini-128k && \
+    ollama pull llama3.2:1b && \
     ollama pull nomic-embed-text && \
     pkill ollama"
 
