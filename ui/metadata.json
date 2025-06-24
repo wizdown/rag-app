@@ -1,0 +1,6 @@
+{
+  "name": "RAG Chat UI",
+  "description": "A beautiful and minimalistic UI to interact with a Retrieval Augmented Generation system. Allows adding content to collections and asking questions against them.",
+  "requestFramePermissions": [],
+  "prompt": ""
+}

@@ -1,0 +1,21 @@
+{
+  "name": "rag-chat-ui-containerized",
+  "version": "1.0.0",
+  "description": "Containerized RAG Chat UI application",
+  "private": true,
+  "scripts": {
+    "build": "esbuild index.tsx --bundle --outfile=./bundle.js --jsx=automatic --loader:.tsx=tsx --platform=browser --minify --sourcemap",
+    "start": "serve -s . -l tcp://0.0.0.0:8000"
+  },
+  "dependencies": {
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.20.2",
+    "serve": "^14.2.1",
+    "@types/react": "^18.3.0",
+    "@types/react-dom": "^18.3.0",
+    "typescript": "^5.0.0"
+  }
+}

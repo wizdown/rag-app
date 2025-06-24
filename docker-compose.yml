@@ -1,19 +1,19 @@
 services:
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    container_name: frontend
+  rag-ui:
+    image: rag-ui:latest # Image built locally
+    container_name: rag-ui
     ports:
-      - "3000:3000"
+      - "3000:8000"
     depends_on:
-      - backend
+      - server
     environment:
-      - CHOKIDAR_USEPOLLING=true
+      - OLLAMA_HOST=ollama
+      - OLLAMA_PORT=11434
+      - SERVER_URL=http://server:8000
 
-  backend:
-    image: rag-backend:latest # Image built locally
-    container_name: backend
+  server:
+    image: rag-server:latest # Image built locally
+    container_name: rag-server
     ports:
       - "8000:8000"
     depends_on:
@@ -22,7 +22,7 @@ services:
       - OLLAMA_HOST=ollama
       - OLLAMA_PORT=11434
       - PG_VECTOR_DATABASE_URL=postgresql://demo_user:demo_password@vectordb:5432/rag_db
-    restart: unless-stopped
+    restart: always
 
   ollama:
     image: rag-ollama:latest  # Image built locally
@@ -31,7 +31,7 @@ services:
       - "11434:11434"
     volumes:
       - ollama_data:/root/.ollama
-    restart: unless-stopped
+    restart: always
 
   vectordb:
     image: pgvector/pgvector:pg16
