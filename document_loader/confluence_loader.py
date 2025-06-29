@@ -100,7 +100,7 @@ class ConfluenceRAGApp:
                 loader = ConfluenceLoader(
                     url=self.confluence_url,
                     username=self.username,
-                    api_token=self.api_token,
+                    api_key=self.api_token,
                     space_key=space_key
                 )
                 
@@ -176,7 +176,7 @@ class ConfluenceRAGApp:
             response = retrieval_chain.invoke({"input": query})
             answer = response['answer']
             
-            print(f"Generated answer: {answer}")
+            # print(f"Generated answer: {answer}")
             return answer
             
         except Exception as e:
@@ -205,11 +205,11 @@ def main():
     """Main method to demonstrate the RAG application."""
     
     # Configuration - Replace with your actual values
-    CONFLUENCE_URL = os.getenv("CONFLUENCE_URL", "https://your-company.atlassian.net")
-    CONFLUENCE_USERNAME = os.getenv("CONFLUENCE_USERNAME", "your.email@company.com")
     CONFLUENCE_API_TOKEN = os.getenv("CONFLUENCE_API_TOKEN", "your_api_token")
-    SPACE_KEYS = os.getenv("CONFLUENCE_SPACE_KEYS", "SPACE1,SPACE2").split(",")
-    DB_CONNECTION_STRING = os.getenv("PG_VECTOR_DATABASE_URL", "postgresql://user:password@localhost:5432/vectordb")
+    CONFLUENCE_URL = os.getenv("CONFLUENCE_URL", "https://wizdown.atlassian.net")
+    CONFLUENCE_USERNAME = os.getenv("CONFLUENCE_USERNAME", "abhishekgupta.my@gmail.com")
+    SPACE_KEYS = os.getenv("CONFLUENCE_SPACE_KEYS", "TECH").split(",")
+    DB_CONNECTION_STRING = os.getenv("PG_VECTOR_DATABASE_URL", "postgresql://demo_user:demo_password@localhost:5432/rag_db")
     
     # Initialize the RAG application
     print("Initializing Confluence RAG Application...")
@@ -227,10 +227,7 @@ def main():
     
     # Example queries
     example_queries = [
-        "What is the project overview?",
-        "How do I set up the development environment?",
-        "What are the API endpoints?",
-        "What is the deployment process?"
+        "What is the project overview?"
     ]
     
     print("\n" + "="*50)
