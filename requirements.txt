@@ -12,3 +12,6 @@ psycopg2-binary
 
 # Solves the direct dependency for 'psycopg' v3
 psycopg[binary]
+
+# Atlassian API
+atlassian-python-api==3.41.4 
